@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Shell Script
 
 #!/bin/bash
@@ -78,4 +79,86 @@ fi
 echo " Updating Sonar.sh file"
 sed -i 's/#RUN_AS_USER=/RUN_AS_USER=sonarqube/g' /sonar/sonarqube/bin/linux-x86-64/sonar.sh
 
+=======
+Shell Script
+
+#!/bin/bash
+LOG=/tmp/sonar.log
+MYSQL_URL=http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+MYSQL_RPM=$(echo $MYSQL_URL | awk -F / '{print $NF}')
+SONAR_URL=https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-6.7.6.zip
+SONAR_ZIP=$(echo $SONAR_URL | awk -F / '{print $NF}')
+SONAR_SRC=$(echo $SONAR_URL | awk -F / '{print $NF}' | sed 's/.zip//')
+
+yum install java wget unzip  -y &>>$LOG
+
+if [ $? -eq 0 ]; then
+echo "Installing Sonar Dependencies ... SUCCESS";
+else 
+echo "Installing Sonar Dependenceis ... FAILED";
+exit 1
+fi
+
+if [ -f /sonar/mysql-community-release-el7-5.noarch.rpm ]; then
+    echo " MYSQL Package Installation has compleated ...! " 
+else
+    mkdir /sonar && cd /sonar
+    wget $MYSQL_URL -O /sonar/$MYSQL_RPM &>>$LOG 
+    rpm -ivh /sonar/$MYSQL_RPM &>>$LOG 
+    yum install mysql-server -y  &>>$LOG 
+fi
+
+if [ $? -eq 0 ]; then
+echo "Installing Mysql RPM Package... SUCCESS";
+else 
+echo "Installing Mysql RPM Package ... FAILED";
+exit 1
+fi
+
+echo " Starting Mysql Service"
+systemctl start mysql &>>$LOG
+
+if [ $? -eq 0 ]; then
+echo "Starting Mysql Service... SUCCESS";
+else 
+echo "Starting Mysql Service ... FAILED";
+exit 1
+fi
+
+echo " Create Sonar_db "
+if [ -f /sonar/sonar.sql ]; then 
+   echo " Sonar DB Already Created ...! "
+else
+    echo "CREATE DATABASE sonarqube_db;
+    CREATE USER 'sonarqube_user'@'localhost' IDENTIFIED BY 'password';
+    GRANT ALL PRIVILEGES ON sonarqube_db.* TO 'sonarqube_user'@'localhost' IDENTIFIED BY 'password';
+    FLUSH PRIVILEGES; " > /sonar/sonar.sql
+    mysql < /sonar/sonar.sql
+    echo " Creating Sonar Database "
+fi
+
+egrep "sonarqube" /etc/passwd >/dev/null
+if [ $? -eq 0 ]; then
+ echo " SonarQube User Exists...!"
+else 
+ useradd sonarqube &>>$LOG 
+ echo "creating Sonarqube User" 
+fi
+
+if [ -d /sonar/sonarqube ]; then
+echo " DIR Exists "
+else 
+wget  $SONAR_URL -O /sonar/$SONAR_ZIP &>>$LOG 
+unzip /sonar/$SONAR_ZIP &>>$LOG 
+mv /sonar/$SONAR_SRC /sonar/sonarqube
+chown sonarqube. /sonar/sonarqube -R
+echo 'sonar.jdbc.username=sonarqube_user
+sonar.jdbc.password=password
+sonar.jdbc.url=jdbc:mysql://localhost:3306/sonarqube_db?useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useConfigs=maxPerformance' >> /sonar/sonarqube/conf/sonar.properties
+fi
+
+echo " Updating Sonar.sh file"
+sed -i 's/#RUN_AS_USER=/RUN_AS_USER=sonarqube/g' /sonar/sonarqube/bin/linux-x86-64/sonar.sh
+
+>>>>>>> b730073 (update file's in my repo)
 sh /sonar/sonarqube/bin/linux-x86-64/sonar.sh start
